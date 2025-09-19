@@ -141,18 +141,87 @@ def NUA(df):
     Neurophysiology = pd.concat(Neuro_metrics, axis=1).mean(axis=1) if Neuro_metrics else None
 
     # --- Environmental Quality ---
-    CLM = (df["CLM"]/6*100) if "CLM" in df.columns else None
+    if df["CLM"].notna().any():
+        CLM = (df["CLM"] / 6) * 100
+    else:
+        CLM = None
 
-    noise = None
-    if "Background Noise" in df.columns:
-        bins = [-np.inf, 45, 50, 55, 65, np.inf]
-        labels = [5,4,3,2,1]
-        noise = pd.cut(df["Background Noise"], bins=bins, labels=labels, right=False).astype(float)
-        noise = (noise / 5) * 100
+    # --- Background Noise ---
+    if df["Background Noise"].notna().any():
+      noise = np.interp(
+        df["Background Noise"],
+        [0, 40, 50, 55, 65, 75, 100],  # dB LAeq levels
+        [100, 100, 80, 60, 40, 20, 0]  # comfort percentages
+      )
+      noise = pd.Series(noise, index=df.index)
+    else:
+      noise = None
 
-    # (Other environmental metrics handled similarly...)
-    # Combine environmental parts
-    env_parts = [CLM, noise]  # add other metrics if desired
+
+    # --- Thermal Comfort (continuous function) ---
+    if df["Thermal Comfort"].notna().any():
+    # DI → comfort % mapping
+      thermal = np.interp(
+        df["Thermal Comfort"],
+        [0, 21, 24, 27, 29, 50],   # DI values (extended a bit for safety)
+        [100, 100, 75, 50, 25, 0]  # comfort percentages
+    )
+      thermal = pd.Series(thermal, index=df.index)
+    else:
+      thermal = None
+
+    # --- Air Quality (continuous function) ---
+    if df["Air Quality"].notna().any():
+      air_quality = np.interp(
+        df["Air Quality"],
+        [0, 12, 35.4, 55.4, 150.4, 250.4, 500],  # PM2.5 µg/m³ levels
+        [100, 100, 75, 50, 25, 10, 0]            # comfort percentages
+      )
+      air_quality = pd.Series(air_quality, index=df.index)
+    else:
+      air_quality = None
+
+    if df["WH24"].notna().any():
+        healthcare_access = (df["WH24"]/5)*100
+    else:
+        healthcare_access = None
+
+    np_cols =["NP12","NP13","NP14","NP15","NP16","NP17","NP18","NP19","NP20","NP21",
+              "NP22","NP23","NP24","NP25","NP26","NP27","NP28"]
+    valid_np_cols = [col for col in np_cols if df[col].notna().any()]
+    if valid_np_cols:
+        max_val = 5
+        reversed_np = (max_val + 1) - df[valid_np_cols]
+        total_score = reversed_np.fillna(0).sum(axis=1)
+        max_score = max_val * len(valid_np_cols)
+        bluegreen_access = (total_score / max_score) * 100
+    else:
+        bluegreen_access = None
+
+    if healthcare_access is not None and bluegreen_access is not None:
+        Accessibility = (healthcare_access + bluegreen_access) / 2
+    elif healthcare_access is not None:
+        Accessibility = healthcare_access
+    elif bluegreen_access is not None:
+        Accessibility = bluegreen_access
+    else:
+        Accessibility = None
+
+    mobility_cols = ["WH15","WH25"]
+    valid_cols = [col for col in mobility_cols if df[col].notna().any()]
+    if valid_cols:
+        mobility = ((df[valid_cols].fillna(0).sum(axis=1)) / (len(valid_cols)*5)) * 100
+    else:
+        mobility = None
+
+    QoLE_cols = ["WH9","WH23"]
+    valid_cols = [col for col in QoLE_cols if df[col].notna().any()]
+    if valid_cols:
+        QoLE = ((df[valid_cols].fillna(0).sum(axis=1)) / (len(valid_cols)*5)) * 100
+    else:
+        QoLE = None
+        
+    env_parts = [CLM, noise,thermal,air_quality,QoLE,mobility,Accessibility]  # add other metrics if desired
     env_available = [ensure_series(p, df) for p in env_parts if p is not None]
     Environmental_Quality = pd.concat(env_available, axis=1).mean(axis=1) if env_available else None
 
@@ -170,4 +239,5 @@ def NUA(df):
         NUA_Score = pd.Series([np.nan] * len(df))
 
     return NUA_Score
+
 
