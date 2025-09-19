@@ -21,18 +21,22 @@ required_columns = [
 ]
 
 if uploaded_file is not None:
-    df = pd.read_excel(uploaded_file,sheet_name="Indices",header=2)
+    df = pd.read_excel(uploaded_file, sheet_name="Indices", header=2)
 
     st.write("### Preview of the data")
     st.dataframe(df.head())
+
+    # Check for missing columns or empty columns
+    missing_or_empty_cols = [
+        col for col in required_columns
+        if col not in df.columns or df[col].dropna().empty
+    ]
     
-    # Check for missing columns
-    missing_cols = [col for col in required_columns if col not in df.columns]
-    if missing_cols:
+    if missing_or_empty_cols:
         st.warning(
-            "The following variables are missing from your data. "
-            "The NUA calculation may not be complete fully representative or may fail:\n\n" +
-            ", ".join(missing_cols)
+            "The following variables are missing or contain no data. "
+            "The NUA calculation may be incomplete:\n\n" +
+            ", ".join(missing_or_empty_cols)
         )
 
     st.write("### Calculating NUA Index...")
