@@ -38,7 +38,7 @@ if option == "Upload Excel File":
 elif option == "Download Template + Upload":
     st.markdown(
         """
-        [📥 Download NUA Excel Template](https://github.com/Davidoreilly12/NUA-Index/NUA_template.xlsx)
+        [📥 Download NUA Excel Template](https://github.com/Davidoreilly12/NUA-Index/blob/main/NUA_template.xlsx)
         """,
         unsafe_allow_html=True
     )
@@ -87,5 +87,6 @@ if df is not None:
 
     except Exception as e:
         st.error(f"Error during NUA calculation: {e}")
+
 
 
