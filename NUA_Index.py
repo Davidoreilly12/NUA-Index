@@ -36,16 +36,11 @@ if option == "Upload Excel File":
 
 # --- Option 2: Download Template + Upload ---
 elif option == "Download Template + Upload":
-    # Create an empty template with required columns
-    template = pd.DataFrame(columns=required_columns)
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
-        template.to_excel(writer, sheet_name="Indices", index=False, startrow=2)
-    st.download_button(
-        label="Download Excel Template",
-        data=buffer,
-        file_name="NUA_template.xlsx",
-        mime="application/vnd.ms-excel"
+    st.markdown(
+        """
+        [📥 Download NUA Excel Template](https://github.com/your-username/your-repo/raw/main/path/to/NUA_template.xlsx)
+        """,
+        unsafe_allow_html=True
     )
 
     uploaded_file = st.file_uploader("Upload your filled Excel file", type=["xlsx", "xls"])
@@ -92,3 +87,4 @@ if df is not None:
 
     except Exception as e:
         st.error(f"Error during NUA calculation: {e}")
+
