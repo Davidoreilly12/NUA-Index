@@ -38,7 +38,7 @@ if option == "Upload Excel File":
 elif option == "Download Template + Upload":
     st.markdown(
         """
-        [📥 Download NUA Excel Template](https://github.com/Davidoreilly12/NUA-Index/blob/main/NUA_template.xlsx)
+        [📥 Download NUA Excel Template](https://github.com/Davidoreilly12/NUA-Index/raw/main/NUA_template.xlsx)
         """,
         unsafe_allow_html=True
     )
@@ -85,8 +85,33 @@ if df is not None:
             st.write("NUA Index [Mean ± SD] calculated (0-100%):")
             st.write(nua_score)
 
+            # --- Download Results as Excel ---
+            output = io.BytesIO()
+            if isinstance(nua_score, pd.Series):
+                nua_score.to_frame("NUA_Score").to_excel(output, index=False)
+            else:
+                nua_score.to_excel(output, index=False)
+            output.seek(0)
+
+            st.download_button(
+                label="📥 Download NUA Results (Excel)",
+                data=output,
+                file_name="NUA_results.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+            # --- Also allow CSV ---
+            csv_output = nua_score.to_csv(index=False) if not isinstance(nua_score, pd.Series) else nua_score.to_frame("NUA_Score").to_csv(index=False)
+            st.download_button(
+                label="📥 Download NUA Results (CSV)",
+                data=csv_output,
+                file_name="NUA_results.csv",
+                mime="text/csv"
+            )
+
     except Exception as e:
         st.error(f"Error during NUA calculation: {e}")
+
 
 
 
