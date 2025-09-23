@@ -150,21 +150,22 @@ def NUA(df, Neuro=None):
     Environmental_Quality = pd.concat(env_available, axis=1).mean(axis=1) if env_available else None
 
     # --- Final NUA Score ---
-    sections = [Wellbeing, Lifestyle, CB, Environmental_Quality]
-    if Neurophysiology is not None:
-        sections.append(Neurophysiology)
-
+    sections = [Wellbeing, Lifestyle, CB, Environmental_Quality, Neurophysiology]
     available_sections = [s for s in sections if s is not None]
+
     if available_sections:
         df_sections = pd.concat(available_sections, axis=1)
         NUA_per_participant = df_sections.mean(axis=1)
-        NUA_Score_mean = NUA_per_participant.mean()
-        NUA_Score_STD = NUA_per_participant.std()
-        NUA_Score = [NUA_Score_mean, NUA_Score_STD]
+        # Return as DataFrame with columns Mean and Std
+        NUA_Score = pd.DataFrame({
+        "NUA_Score_Mean": [NUA_per_participant.mean()],
+        "NUA_Score_STD": [NUA_per_participant.std()]
+        })
     else:
-        NUA_Score = [np.nan, np.nan]
+        NUA_Score = pd.DataFrame({"NUA_Score_Mean": [np.nan], "NUA_Score_STD": [np.nan]})
 
     return NUA_Score
+
 
 
 
