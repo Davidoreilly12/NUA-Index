@@ -1,17 +1,11 @@
 import streamlit as st
 import pandas as pd
-import io
 from nua_module import NUA  # assuming you put your NUA function in nua_module.py
 
 st.title("Neuro-Urbanism Assessment (NUA) Index Calculator")
 
-# --- Input Options ---
-option = st.radio(
-    "Choose how to provide your data:",
-    ["Upload Excel File", "Download Template + Upload", "Paste Data"]
-)
+uploaded_file = st.file_uploader("Upload an Excel file", type=["xlsx", "xls"])
 
-# --- Required Columns ---
 required_columns = [
     "MM_Arousal", "MM_Valence",
     "GA1","GA2","GA3","GA4","GA5","GA6","GA7",
@@ -23,54 +17,20 @@ required_columns = [
     "WH9","WH15","WH20","WH21","WH22","WH23","WH24","WH25",
     "NP4","NP5","NP12","NP13","NP14","NP15","NP16","NP17","NP18","NP19","NP20",
     "NP21","NP22","NP23","NP24","NP25","NP26","NP27","NP28","Participant","Site",
-    "EEG","HRV","CLM","Background Noise","Thermal Comfort","Air Quality","Age"
-]
+    "EEG","HRV","CLM","Background Noise","Thermal Comfort","Air Quality"]
 
-df = None
+if uploaded_file is not None:
+    df = pd.read_excel(uploaded_file,sheet_name="Indices",header=2)
 
-# --- Option 1: Upload Excel ---
-if option == "Upload Excel File":
-    uploaded_file = st.file_uploader("Upload an Excel file", type=["xlsx", "xls"])
-    if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file, sheet_name="Indices", header=2)
-
-# --- Option 2: Download Template + Upload ---
-elif option == "Download Template + Upload":
-    st.markdown(
-        """
-        [📥 Download NUA Excel Template](https://github.com/Davidoreilly12/NUA-Index/raw/main/NUA_template.xlsx)
-        """,
-        unsafe_allow_html=True
-    )
-
-    uploaded_file = st.file_uploader("Upload your filled Excel file", type=["xlsx", "xls"])
-    if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file, sheet_name="Indices", header=2)
-
-# --- Option 3: Paste Data ---
-elif option == "Paste Data":
-    text_input = st.text_area(
-        "Paste your data here (CSV format, with headers in the first row):",
-        height=200,
-        placeholder="Example:\nMM_Arousal,MM_Valence,GA1,GA2,...\n3.5,4.1,2,5,..."
-    )
-    if text_input:
-        try:
-            df = pd.read_csv(io.StringIO(text_input))
-        except Exception as e:
-            st.error(f"Could not read pasted data: {e}")
-
-# --- Process if DataFrame exists ---
-if df is not None:
     st.write("### Preview of the data")
     st.dataframe(df.head())
-
+    
     # Check for missing columns
     missing_cols = [col for col in required_columns if col not in df.columns]
     if missing_cols:
         st.warning(
             "The following variables are missing from your data. "
-            "The NUA calculation may not be complete or may fail:\n\n" +
+            "The NUA calculation may not be complete fully representative or may fail:\n\n" +
             ", ".join(missing_cols)
         )
 
@@ -85,33 +45,8 @@ if df is not None:
             st.write("NUA Index [Mean ± SD] calculated (0-100%):")
             st.write(nua_score)
 
-            # --- Download Results as Excel ---
-            output = io.BytesIO()
-            if isinstance(nua_score, pd.Series):
-                nua_score.to_frame("NUA_Score").to_excel(output, index=False)
-            else:
-                nua_score.to_excel(output, index=False)
-            output.seek(0)
-
-            st.download_button(
-                label="📥 Download NUA Results (Excel)",
-                data=output,
-                file_name="NUA_results.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-
-            # --- Also allow CSV ---
-            csv_output = nua_score.to_csv(index=False) if not isinstance(nua_score, pd.Series) else nua_score.to_frame("NUA_Score").to_csv(index=False)
-            st.download_button(
-                label="📥 Download NUA Results (CSV)",
-                data=csv_output,
-                file_name="NUA_results.csv",
-                mime="text/csv"
-            )
-
     except Exception as e:
         st.error(f"Error during NUA calculation: {e}")
-
 
 
 
