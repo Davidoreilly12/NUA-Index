@@ -4,6 +4,13 @@ from nua_module import NUA  # assuming you put your NUA function in nua_module.p
 
 st.title("Neuro-Urbanism Assessment (NUA) Index Calculator")
 
+# --- Link to Excel template on GitHub ---
+st.markdown(
+    """
+    **Need a template?** Download it from [GitHub](https://raw.githubusercontent.com/Davidoreilly12/NUA-Index/main/NUA_template.xlsx)
+    """
+)
+
 uploaded_file = st.file_uploader("Upload an Excel file", type=["xlsx", "xls"])
 
 required_columns_df = [
@@ -58,6 +65,7 @@ if uploaded_file is not None:
 
     except Exception as e:
         st.error(f"Error during NUA calculation: {e}")
+
 
 
 
