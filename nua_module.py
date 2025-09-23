@@ -1,14 +1,15 @@
 import pandas as pd
 import numpy as np
-from scipy import stats
-import statsmodels.formula.api as smf
+import pingouin as pg
 
-def NUA(df):
+def NUA(df, Neuro=None):
     """
     Neuro-Urbanism Assessment (NUA) Index calculator
     Input: df = DataFrame with all raw participant data
-    Output: NUA_Score = The NUA index score (%)
+           Neuro = DataFrame with EEG/HRV data (optional)
+    Output: NUA_Score = [mean, std] of NUA index score (%)
     """
+
     # --- Helper ---
     def ensure_series(x, df):
         """Convert float/int/np scalar to Series aligned with df index"""
@@ -35,25 +36,16 @@ def NUA(df):
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # --- Well-being ---
+    MM = None
     if df[["MM_Arousal", "MM_Valence"]].notna().any().any():
         MM_A = ((10 - df["MM_Arousal"]) / 9) * 100
         MM_V = ((6 - df["MM_Valence"]) / 5) * 100
         MM = (MM_A + MM_V) / 2
-    else:
-        MM = None
 
     gad_cols = ["GA1","GA2","GA3","GA4","GA5","GA6","GA7"]
     ph_cols = ["PH1","PH2","PH3","PH4","PH5","PH6","PH7","PH8"]
-
-    if df[gad_cols].notna().any().any():
-        GAD = ((4 - df[gad_cols]).sum(axis=1) / 21) * 100
-    else:
-        GAD = None
-
-    if df[ph_cols].notna().any().any():
-        PH = ((4 - df[ph_cols]).sum(axis=1) / 24) * 100
-    else:
-        PH = None
+    GAD = ((4 - df[gad_cols]).sum(axis=1) / 21 * 100) if df[gad_cols].notna().any().any() else None
+    PH = ((4 - df[ph_cols]).sum(axis=1) / 24 * 100) if df[ph_cols].notna().any().any() else None
 
     if GAD is not None and PH is not None:
         Depression_Anxiety = (GAD + PH) / 2
@@ -76,19 +68,16 @@ def NUA(df):
     Wellbeing = pd.concat(wellbeing_available, axis=1).mean(axis=1) if wellbeing_available else None
 
     # --- Lifestyle ---
-    if df["Sleep Quality"].notna().any():
-        SQ = (df["Sleep Quality"] / 10) * 100
-    else:
-        SQ = None
+    SQ = (df["Sleep Quality"] / 10 * 100) if df["Sleep Quality"].notna().any() else None
 
-    if df["HL9_WD_HRS"].notna().any() or df["HL10_WD_HRS"].notna().any():
+    if df[["HL9_WD_HRS","HL10_WD_HRS"]].notna().any().any():
         weekday_time = df["HL9_WD_HRS"].fillna(0) + df["HL10_WD_HRS"].fillna(0) \
-                       + df["HL9_WD_MIN"].fillna(0) / 60 + df["HL10_WD_MIN"].fillna(0) / 60
+                       + df["HL9_WD_MIN"].fillna(0)/60 + df["HL10_WD_MIN"].fillna(0)/60
         weekend_time = df["HL9_WK_HRS"].fillna(0) + df["HL10_WK_HRS"].fillna(0) \
-                       + df["HL9_WK_MIN"].fillna(0) / 60 + df["HL10_WK_MIN"].fillna(0) / 60
-        avg_daily_outdoor = ((weekday_time * 5) + (weekend_time * 2)) / 7
+                       + df["HL9_WK_MIN"].fillna(0)/60 + df["HL10_WK_MIN"].fillna(0)/60
+        avg_daily_outdoor = ((weekday_time*5) + (weekend_time*2)) / 7
         outdoors = pd.cut(avg_daily_outdoor, bins=[-np.inf,0.5,1,np.inf], labels=[1,2,3]).astype(float)
-        outdoors = (outdoors / 3) * 100
+        outdoors = outdoors / 3 * 100
     else:
         outdoors = None
 
@@ -113,72 +102,38 @@ def NUA(df):
     cb_available = [ensure_series(p, df) for p in cb_parts if p is not None]
     CB = pd.concat(cb_available, axis=1).mean(axis=1) if cb_available else None
 
-    # --- Neurophysiology using scipy.stats.linregress ---
-    if df["EEG"].notna().any():
-        df_clean = df.dropna(subset=["EEG", "Site","Condition"]).copy()
+    # --- Neurophysiology with Pingouin ---
+    EEG = None
+    HRV = None
+    Neurophysiology = None
+    if Neuro is not None and isinstance(Neuro, pd.DataFrame):
+        neuro_df = Neuro.copy()
 
-        model = smf.mixedlm(
-        "EEG ~ Site*Condition",
-        data=df_clean,
-        groups=df_clean["Participant"],
-        re_formula="~Condition",
-        )
-        result = model.fit(method="lbfgs")
+        # EEG
+        if 'EEG' in neuro_df.columns and neuro_df['EEG'].notna().any():
+            try:
+                eeg_means = neuro_df.groupby(['Participant','Site'])['EEG'].mean().unstack()
+                if 0 in eeg_means.columns and 1 in eeg_means.columns:
+                    EEG = 50 + ((eeg_means[1] - eeg_means[0]) / (eeg_means[0] + eeg_means[1]) * 100)
+            except:
+                EEG = None
 
-        df_clean["Predicted"] = result.fittedvalues
+        # HRV
+        if 'HRV' in neuro_df.columns and neuro_df['HRV'].notna().any():
+            try:
+                hrv_means = neuro_df.groupby(['Participant','Site'])['HRV'].mean().unstack()
+                if 0 in hrv_means.columns and 1 in hrv_means.columns:
+                    HRV = 50 + ((hrv_means[1] - hrv_means[0]) / (hrv_means[0] + hrv_means[1]) * 100)
+            except:
+                HRV = None
 
-        df_wide_eeg = df_clean.pivot_table(
-        index=["Participant","Condition"],
-        columns="Site",
-        values="Predicted"
-        ).reset_index()
-
-        if 0 in df_wide_eeg.columns and 1 in df_wide_eeg.columns:
-            EEG = 50+(((df_wide_eeg[1] - df_wide_eeg[0])/(df_wide_eeg[0]+df_wide_eeg[1]))*100)
-        else:
-            EEG= None
-    else:
-        EEG = None
-
-
-# --------------------------
-# Load & prepare HRV data
-# --------------------------
-    if df["HRV"].notna().any():
-        df_clean = df.dropna(subset=["HRV", "Site","Condition"]).copy()
-
-        model = smf.mixedlm(
-        "HRV ~ Site*Condition",
-        data=df_clean,
-        groups=df_clean["Participant"],
-        re_formula="~Condition",
-        )
-        result = model.fit(method="lbfgs")
-
-        df_clean["Predicted"] = result.fittedvalues
-
-        df_wide_hrv = df_clean.pivot_table(
-        index=["Participant","Condition"],
-        columns="Site",
-        values="Predicted"
-        ).reset_index()
-
-        if 0 in df_wide_hrv.columns and 1 in df_wide_hrv.columns:
-            HRV = 50+(((df_wide_hrv[1] - df_wide_hrv[0])/(df_wide_hrv[0]+df_wide_hrv[1]))*100)
-        else:
-            HRV= None
-    else:
-        HRV = None
-
-    if EEG is not None and HRV is not None:
-        Neurophysiology = pd.concat([HRV,EEG],axis=1)
-    elif EEG is not None and HRV is None:
-        Neurophysiology = pd.concat([HRV,EEG],axis=1).mean(axis=1)
-    elif HRV is not None and EEG is None:
-        Neurophysiology = HRV
-    else:
-        Neurophysiology = None
-
+        # Combine EEG & HRV
+        if EEG is not None and HRV is not None:
+            Neurophysiology = pd.concat([EEG, HRV], axis=1).mean(axis=1)
+        elif EEG is not None:
+            Neurophysiology = EEG
+        elif HRV is not None:
+            Neurophysiology = HRV
 
     # --- Environmental Quality ---
     CLM = (df["CLM"]/6*100) if "CLM" in df.columns else None
@@ -188,18 +143,18 @@ def NUA(df):
         bins = [-np.inf, 45, 50, 55, 65, np.inf]
         labels = [5,4,3,2,1]
         noise = pd.cut(df["Background Noise"], bins=bins, labels=labels, right=False).astype(float)
-        noise = (noise / 5) * 100
+        noise = noise / 5 * 100
 
-    # (Other environmental metrics handled similarly...)
-    # Combine environmental parts
-    env_parts = [CLM, noise]  # add other metrics if desired
+    env_parts = [CLM, noise]
     env_available = [ensure_series(p, df) for p in env_parts if p is not None]
     Environmental_Quality = pd.concat(env_available, axis=1).mean(axis=1) if env_available else None
 
     # --- Final NUA Score ---
-    sections = [Wellbeing, Lifestyle, CB, Environmental_Quality, Neurophysiology]
-    available_sections = [s for s in sections if s is not None]
+    sections = [Wellbeing, Lifestyle, CB, Environmental_Quality]
+    if Neurophysiology is not None:
+        sections.append(Neurophysiology)
 
+    available_sections = [s for s in sections if s is not None]
     if available_sections:
         df_sections = pd.concat(available_sections, axis=1)
         NUA_per_participant = df_sections.mean(axis=1)
@@ -207,9 +162,10 @@ def NUA(df):
         NUA_Score_STD = NUA_per_participant.std()
         NUA_Score = [NUA_Score_mean, NUA_Score_STD]
     else:
-        NUA_Score = pd.Series([np.nan] * len(df))
+        NUA_Score = [np.nan, np.nan]
 
     return NUA_Score
+
 
 
 
