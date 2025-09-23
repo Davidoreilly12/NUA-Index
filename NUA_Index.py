@@ -22,8 +22,8 @@ required_columns = [
     "BC1","BC2","BC3","BC4","BC5","BC6","BC7","BC8",
     "WH9","WH15","WH20","WH21","WH22","WH23","WH24","WH25",
     "NP4","NP5","NP12","NP13","NP14","NP15","NP16","NP17","NP18","NP19","NP20",
-    "NP21","NP22","NP23","NP24","NP25","NP26","NP27","NP28",
-    "AlphaPeaks","HRV","CLM","Background Noise","Thermal Comfort","Air Quality","Age"
+    "NP21","NP22","NP23","NP24","NP25","NP26","NP27","NP28","Participant","Site",
+    "EEG","HRV","CLM","Background Noise","Thermal Comfort","Air Quality","Age"
 ]
 
 df = None
@@ -111,6 +111,7 @@ if df is not None:
 
     except Exception as e:
         st.error(f"Error during NUA calculation: {e}")
+
 
 
 
