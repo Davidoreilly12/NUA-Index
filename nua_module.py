@@ -27,8 +27,8 @@ def NUA(df):
         "WH20","WH21","WH22","WH23","WH24","WH25","HL9_WD_HRS","HL9_WD_MIN",
         "HL9_WK_HRS","HL9_WK_MIN","HL10_WD_HRS","HL10_WD_MIN","HL10_WK_HRS","HL10_WK_MIN",
         "NP4","NP5","NP12","NP13","NP14","NP15","NP16","NP17","NP18","NP19","NP20",
-        "NP21","NP22","NP23","NP24","NP25","NP26","NP27","NP28",
-        "AlphaPeaks","HRV","CLM","Background Noise","Thermal Comfort","Air Quality"
+        "NP21","NP22","NP23","NP24","NP25","NP26","NP27","NP28","Participant","Site",
+        "EEG","HRV","CLM","Background Noise","Thermal Comfort","Air Quality"
     ]
     for col in numeric_cols:
         if col in df.columns:
@@ -173,7 +173,7 @@ def NUA(df):
     if EEG is not None and HRV is not None:
         Neurophysiology = pd.concat([HRV,EEG],axis=1)
     elif EEG is not None and HRV is None:
-        Neurophysiology = EEG
+        Neurophysiology = pd.concat([HRV,EEG],axis=1).mean(axis=1)
     elif HRV is not None and EEG is None:
         Neurophysiology = HRV
     else:
@@ -210,6 +210,7 @@ def NUA(df):
         NUA_Score = pd.Series([np.nan] * len(df))
 
     return NUA_Score
+
 
 
 
