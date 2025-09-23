@@ -4,12 +4,19 @@ from nua_module import NUA  # assuming you put your NUA function in nua_module.p
 
 st.title("Neuro-Urbanism Assessment (NUA) Index Calculator")
 
-# --- Link to Excel template on GitHub ---
-st.markdown(
-    """
-    **Need a template?** Download it from [GitHub](https://raw.githubusercontent.com/Davidoreilly12/NUA-Index/main/NUA_template.xlsx)
-    """
-)
+# --- Provide a direct download button for the template ---
+template_path = Path("NUA_template.xlsx")  # make sure this file is in your project folder
+
+if template_path.exists():
+    with open(template_path, "rb") as f:
+        st.download_button(
+            label="Download Excel Template",
+            data=f,
+            file_name="NUA_template.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+else:
+    st.warning("NUA template file not found in the app folder.")
 
 uploaded_file = st.file_uploader("Upload an Excel file", type=["xlsx", "xls"])
 
@@ -65,6 +72,7 @@ if uploaded_file is not None:
 
     except Exception as e:
         st.error(f"Error during NUA calculation: {e}")
+
 
 
 
