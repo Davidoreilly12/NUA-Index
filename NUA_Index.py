@@ -28,36 +28,10 @@ if option == "Download Template + Upload":
             st.write("### NUA Index [Mean ± SD] (0-100%)")
             st.write(nua_score)
 
-            # --- Download as Excel ---
-            output = io.BytesIO()
-            if isinstance(nua_score, pd.Series):
-                nua_score.to_frame("NUA_Score").to_excel(output, index=False)
-            else:
-                nua_score.to_excel(output, index=False)
-            output.seek(0)
-
-            st.download_button(
-                label="📥 Download NUA Results (Excel)",
-                data=output,
-                file_name="NUA_results.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-
-            # --- Download as CSV ---
-            if isinstance(nua_score, pd.Series):
-                csv_output = nua_score.to_frame("NUA_Score").to_csv(index=False)
-            else:
-                csv_output = nua_score.to_csv(index=False)
-
-            st.download_button(
-                label="📥 Download NUA Results (CSV)",
-                data=csv_output,
-                file_name="NUA_results.csv",
-                mime="text/csv"
-            )
 
         except Exception as e:
             st.error(f"Error during NUA calculation: {e}")
+
 
 
 
